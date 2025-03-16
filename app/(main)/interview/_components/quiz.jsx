@@ -19,97 +19,85 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import QuizResult from "./quiz-Result";
 
-const Quiz = () => {
-  const [question, setQuestion] = useState(0);
-  const [explanation, setExplanation] = useState(false);
-  const [answer, setAnswer] = useState([]);
+export default function Quiz() {
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   const {
-    loading: quizLoading,
-    data: quizData,
+    loading: generatingQuiz,
     fn: generateQuizFn,
+    data: quizData,
   } = useFetch(generateQuiz);
+
   const {
-    loading: savingQuiz,
-    data: savingData,
-    fn: savingQuizFn,
-    setData: setSavingData,
+    loading: savingResult,
+    fn: saveQuizResultFn,
+    data: resultData,
+    setData: setResultData,
   } = useFetch(savingQuizResult);
 
   useEffect(() => {
     if (quizData) {
-      setAnswer(new Array(quizData.length).fill(null));
+      setAnswers(new Array(quizData.length).fill(null));
     }
   }, [quizData]);
-  if (quizLoading) {
-    console.log(quizLoading);
-    return <BarLoader className="mt-4" width={"100%"} color="gray" />;
-  }
 
-  const handleChange = (ans) => {
-    const Updated = [...answer];
-
-    Updated[question] = ans;
-    setAnswer(Updated);
+  const handleAnswer = (answer) => {
+    const newAnswers = [...answers];
+    newAnswers[currentQuestion] = answer;
+    setAnswers(newAnswers);
   };
+
   const handleNext = () => {
-    if (question < quizData.length - 1) {
-      setExplanation(false);
-      setQuestion(question + 1);
+    if (currentQuestion < quizData.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+      setShowExplanation(false);
     } else {
       finishQuiz();
     }
   };
 
-  const finishQuiz = async () => {
-    if (!quizData || !Array.isArray(quizData) || quizData.length === 0) {
-      console.error("Error: quizData is invalid", quizData);
-      toast.error("Quiz data is invalid!");
-      return;
-    }
-
-    if (!Array.isArray(answer) || answer.length === 0) {
-      console.error("Error: answer array is invalid", answer);
-      toast.error("No answers provided!");
-      return;
-    }
-
-    let score = 0;
-    answer.forEach((ans, index) => {
-      if (ans === quizData[index].correctAnswer) {
-        score++;
+  const calculateScore = () => {
+    let correct = 0;
+    answers.forEach((answer, index) => {
+      if (answer === quizData[index].correctAnswer) {
+        correct++;
       }
     });
-    // console.log("Sending data:", { questions: quizData, answer, score }); // Debug log
+    return (correct / quizData.length) * 100;
+  };
 
+  const finishQuiz = async () => {
+    const score = calculateScore();
     try {
-      await savingQuizFn({ questions: quizData, answer, score });
-      toast.success("Quiz Completed");
+      await saveQuizResultFn(quizData, answers, score);
+      toast.success("Quiz completed!");
     } catch (error) {
-      console.error("Error saving quiz:", error);
-      toast.error(error.message);
+      toast.error(error.message || "Failed to save quiz results");
     }
-
-    console.log("Final Score:", score);
   };
 
   const startNewQuiz = () => {
-    setQuestion(0);
-    setExplanation(false);
-    setAnswer([]);
+    setCurrentQuestion(0);
+    setAnswers([]);
+    setShowExplanation(false);
     generateQuizFn();
-    setSavingData(null);
+    setResultData(null);
   };
 
+  if (generatingQuiz) {
+    return <BarLoader className="mt-4" width={"100%"} color="gray" />;
+  }
+
   // Show results if quiz is completed
-  if (savingData) {
+  if (resultData) {
     return (
       <div className="mx-2">
-        <QuizResult result={savingData} onStartNew={startNewQuiz} />
+        <QuizResult result={resultData} onStartNew={startNewQuiz} />
       </div>
     );
   }
-  console.log(savingData);
 
   if (!quizData) {
     return (
@@ -124,7 +112,7 @@ const Quiz = () => {
           </p>
         </CardContent>
         <CardFooter>
-          <Button onClick={generateQuizFn} className="">
+          <Button onClick={generateQuizFn} className="w-full">
             Start Quiz
           </Button>
         </CardFooter>
@@ -132,55 +120,60 @@ const Quiz = () => {
     );
   }
 
-  const Que = quizData[question];
+  const question = quizData[currentQuestion];
+
   return (
-    <Card className="mx-2 ">
+    <Card className="mx-2">
       <CardHeader>
         <CardTitle>
-          Question {question + 1} of {quizData.length}
+          Question {currentQuestion + 1} of {quizData.length}
         </CardTitle>
       </CardHeader>
-      <CardDescription className="mx-5 text-xl mb-3">
-        {Que.question}
-      </CardDescription>
       <CardContent className="space-y-4">
+        <p className="text-lg font-medium">{question.question}</p>
         <RadioGroup
-          onValueChange={handleChange}
+          onValueChange={handleAnswer}
+          value={answers[currentQuestion]}
           className="space-y-2"
-          value={answer[question]}
         >
-          {Que.options.map((op, index) => {
-            return (
-              <div key={index} className="flex items-center space-x-2">
-                <RadioGroupItem value={op} id={`option-${index}`} />
-                <Label htmlFor={`option-${index}`}>{op}</Label>
-              </div>
-            );
-          })}
+          {question.options.map((option, index) => (
+            <div key={index} className="flex items-center space-x-2">
+              <RadioGroupItem value={option} id={`option-${index}`} />
+              <Label htmlFor={`option-${index}`}>{option}</Label>
+            </div>
+          ))}
         </RadioGroup>
-        {explanation ? (
-          <p className="bg-gray-700 p-1 ">{Que.explanation}</p>
-        ) : (
-          ""
+
+        {showExplanation && (
+          <div className="mt-4 p-4 bg-muted rounded-lg">
+            <p className="font-medium">Explanation:</p>
+            <p className="text-muted-foreground">{question.explanation}</p>
+          </div>
         )}
       </CardContent>
-
       <CardFooter className="flex justify-between">
+        {!showExplanation && (
+          <Button
+            onClick={() => setShowExplanation(true)}
+            variant="outline"
+            disabled={!answers[currentQuestion]}
+          >
+            Show Explanation
+          </Button>
+        )}
         <Button
-          onClick={() => setExplanation(true)}
-          disabled={!answer[question]}
+          onClick={handleNext}
+          disabled={!answers[currentQuestion] || savingResult}
+          className="ml-auto"
         >
-          Show Explanation
-        </Button>
-        <Button onClick={handleNext} disabled={answer[question] == null}>
-          {savingQuiz && (
-            <Loader2 className="mt-4" width={"100%"} color="gray" />
+          {savingResult && (
+            <BarLoader className="mt-4" width={"100%"} color="gray" />
           )}
-          {question < quizData.length - 1 ? "Next" : "Finish"}
+          {currentQuestion < quizData.length - 1
+            ? "Next Question"
+            : "Finish Quiz"}
         </Button>
       </CardFooter>
     </Card>
   );
-};
-
-export default Quiz;
+}

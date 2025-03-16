@@ -1,24 +1,23 @@
 import { getAssessment } from "@/actions/interview";
 import StatsCards from "./_components/stats-Cards";
 import PerformanceChart from "./_components/performance-Chart";
-import Quizlist from "./_components/quiz-list";
+import QuizList from "./_components/quiz-list";
 
-const page = async() => {
-  const assessments =await getAssessment()
-  console.log(assessments)
+export default async function InterviewPrepPage() {
+  const assessments = await getAssessment();
+
   return (
     <div>
-      <div className="m-auto -mt-8 -z-50 w-[100%] h-[100%] fixed bg-[#141E30] bg-[linear-gradient(to_top,#243B55,#141E30)]"></div>
-      <div className="gradient-title text-4xl">Interview Preparation</div>
-
-      <div className="space-y-6"> 
-       <StatsCards assessments={assessments} />
-       <PerformanceChart assessments={assessments} />
-       <Quizlist  assessments={assessments} />
-       
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-6xl font-bold gradient-title">
+          Interview Preparation
+        </h1>
+      </div>
+      <div className="space-y-6">
+        <StatsCards assessments={assessments} />
+        <PerformanceChart assessments={assessments} />
+        <QuizList assessments={assessments} />
       </div>
     </div>
   );
-};
-
-export default page;
+}

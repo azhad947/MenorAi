@@ -1,74 +1,69 @@
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-  } from "@/components/ui/card"
-import { ArrowBigUpDashIcon, Brain, Percent, ScanBarcode, Trophy } from "lucide-react"
-  
-const StatsCards = ({assessments}) => {
-    let totalQuestions = 0;
-    let score = 0
-    let latestScore = 0
-    assessments.map((as , index) => {
-        if(as[index] > assessments.length -  2){
-            latestScore= as.quizScore
-        }
-        score = score +   as.quizScore 
-        totalQuestions = totalQuestions +  as.questions.length ;
-       
-    })
+import { Brain, Target, Trophy } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default function StatsCards({ assessments }) {
+  const getAverageScore = () => {
+    if (!assessments?.length) return 0;
+    const total = assessments.reduce(
+      (sum, assessment) => sum + assessment.quizScore,
+      0
+    );
+    return (total / assessments.length).toFixed(1);
+  };
+
+  const getLatestAssessment = () => {
+    if (!assessments?.length) return null;
+    return assessments[0];
+  };
+
+  const getTotalQuestions = () => {
+    if (!assessments?.length) return 0;
+    return assessments.reduce(
+      (sum, assessment) => sum + assessment.questions.length,
+      0
+    );
+  };
+
   return (
-    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 m-2'>
+    <div className="grid gap-4 md:grid-cols-3">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+          <Trophy className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{getAverageScore()}%</div>
+          <p className="text-xs text-muted-foreground">
+            Across all assessments
+          </p>
+        </CardContent>
+      </Card>
 
-<Card >
-<CardHeader className='flex flex-row justify-between items-center pb-2'>
-    <CardTitle>Average Score</CardTitle>
-    <Trophy />
-    
-  </CardHeader>
-  <CardContent className='flex items-center text-xl'>
-   {score / totalQuestions * 100}
-   <Percent className="w-4 h-4"/>
-  </CardContent>
-  <CardFooter>
-    <p className=" text-gray-400 text-sm">Across all assesments</p>
-  </CardFooter>
-</Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            Questions Practiced
+          </CardTitle>
+          <Brain className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{getTotalQuestions()}</div>
+          <p className="text-xs text-muted-foreground">Total questions</p>
+        </CardContent>
+      </Card>
 
-<Card>
-<CardHeader className='flex flex-row justify-between items-center pb-2'>
-    <CardTitle>Question Practiced</CardTitle>
-    <Brain />
-  
-  </CardHeader>
-  <CardContent>
-    {totalQuestions }
-  </CardContent>
-  <CardFooter>
-    <p>Total questions</p>
-  </CardFooter>
-</Card>
-
-<Card>
-<CardHeader className='flex flex-row justify-between items-center pb-2'>
-
-    <CardTitle>Latest Score</CardTitle>
-    <ArrowBigUpDashIcon />
-
-  </CardHeader>
-  <CardContent>
-    {latestScore}
-  </CardContent>
-  <CardFooter>
-    <p>Most recent Quiz</p>
-  </CardFooter>
-</Card>
-
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Latest Score</CardTitle>
+          <Target className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {getLatestAssessment()?.quizScore.toFixed(1) || 0}%
+          </div>
+          <p className="text-xs text-muted-foreground">Most recent quiz</p>
+        </CardContent>
+      </Card>
     </div>
-  )
-} 
-
-export default StatsCards
+  );
+}
