@@ -90,7 +90,7 @@ export async function generateQuiz() {
 
 
 
-export async function savingQuizResult(data) {
+export async function savingQuizResult(questions, answer, score) {
   try {
     // Auth check
     const { userId } = await auth();
@@ -112,22 +112,12 @@ export async function savingQuizResult(data) {
     if (!user) {
       throw new Error("User not found");
     }
-    const { questions, answer, score } = data;
 
-    // Input validation
-    if (!questions || !Array.isArray(questions)) {
-      throw new Error("Invalid questions format");
-    }
-
-    // Ensure answer is an array
-    const userAnswers = Array.isArray(answer) ? answer : [...answer];
-
-    // Process question results
     const questionResults = questions.map((q, index) => ({
       question: q.question,
       answer: q.correctAnswer,
-      userAnswer: userAnswers[index] ,
-      isCorrect: q.correctAnswer === (userAnswers[index]),
+      userAnswer: answer[index] ,
+      isCorrect: q.correctAnswer === (answer[index]),
       explanation: q.explanation,
     }));
 
