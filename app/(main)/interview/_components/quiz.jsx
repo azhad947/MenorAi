@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { BarLoader } from "react-spinners";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import QuizResult from "./quiz-Result";
 
 const Quiz = () => {
   const [question, setQuestion] = useState(0);
@@ -31,8 +33,9 @@ const Quiz = () => {
     loading: savingQuiz,
     data: savingData,
     fn: savingQuizFn,
+    setData: setSavingData,
   } = useFetch(savingQuizResult);
-  console.log(savingData);
+
   useEffect(() => {
     if (quizData) {
       setAnswer(new Array(quizData.length).fill(null));
@@ -58,41 +61,56 @@ const Quiz = () => {
     }
   };
 
-
   const finishQuiz = async () => {
     if (!quizData || !Array.isArray(quizData) || quizData.length === 0) {
       console.error("Error: quizData is invalid", quizData);
       toast.error("Quiz data is invalid!");
       return;
     }
-    
+
     if (!Array.isArray(answer) || answer.length === 0) {
       console.error("Error: answer array is invalid", answer);
       toast.error("No answers provided!");
       return;
     }
-  
+
     let score = 0;
     answer.forEach((ans, index) => {
       if (ans === quizData[index].correctAnswer) {
         score++;
       }
     });
-  
+    // console.log("Sending data:", { questions: quizData, answer, score }); // Debug log
+
     try {
-      await savingQuizFn({ questions: quizData, answer: answer, score });
+      await savingQuizFn({ questions: quizData, answer, score });
       toast.success("Quiz Completed");
     } catch (error) {
       console.error("Error saving quiz:", error);
       toast.error(error.message);
     }
-  
+
     console.log("Final Score:", score);
   };
-  
-  if (savingQuiz) {
-    return <BarLoader className="mt-4" width={"100%"} color="gray" />;
+
+  const startNewQuiz = () => {
+    setQuestion(0);
+    setExplanation(false);
+    setAnswer([]);
+    generateQuizFn();
+    setSavingData(null);
+  };
+
+  // Show results if quiz is completed
+  if (savingData) {
+    return (
+      <div className="mx-2">
+        <QuizResult result={savingData} onStartNew={startNewQuiz} />
+      </div>
+    );
   }
+  console.log(savingData);
+
   if (!quizData) {
     return (
       <Card className="mx-2">
@@ -148,8 +166,16 @@ const Quiz = () => {
       </CardContent>
 
       <CardFooter className="flex justify-between">
-        <Button onClick={() => setExplanation(true)}>Show Explanation</Button>
-        <Button onClick={handleNext}>
+        <Button
+          onClick={() => setExplanation(true)}
+          disabled={!answer[question]}
+        >
+          Show Explanation
+        </Button>
+        <Button onClick={handleNext} disabled={answer[question] == null}>
+          {savingQuiz && (
+            <Loader2 className="mt-4" width={"100%"} color="gray" />
+          )}
           {question < quizData.length - 1 ? "Next" : "Finish"}
         </Button>
       </CardFooter>

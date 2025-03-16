@@ -29,7 +29,7 @@ export async function generateQuiz() {
 
   // 3️⃣ Generate AI Prompt
   const prompt = `
-  Generate 10 technical interview questions for a ${user.industry} professional${user.skills?.length ? " with expertise in " + user.skills.join(", ") : ""}.
+  Generate 3 technical interview questions for a ${user.industry} professional${user.skills?.length ? " with expertise in " + user.skills.join(", ") : ""}.
   
   Each question should:
   - Be a multiple-choice question with 4 answer options.
@@ -90,79 +90,95 @@ export async function generateQuiz() {
 
 
 
-export async function savingQuizResult(questions, answer, score) {
-  const { userId } = await auth();
-
-  if (!userId) {
-    throw new Error("User not authorized");
-  }
-  const user = await db.user.findUnique({
-    where: {
-      clerkUserId: userId,
-    },
-    select: {
-      industry: true,
-      skills: true,
-    },
-  });
-  if (!user) {
-    throw new Error("User not found");
-  }
-console.log(questions , answer  , score)
-  const questionResults = questions.questions.map((q, index) => ({
-    question: q.question,
-    answer: q.correctAnswer,
-    userAnswer: answer?.[index] ?? "No Answer", // ✅ Prevents undefined errors
-    isCorrect: q.correctAnswer === (answer?.[index] ?? ""),
-  
-    explanation: q.explanation,
-  }));
-  const wrongAnswers = questionResults.filter((q) => !q.isCorrect);
-  let improvementTip = null;
-  if (wrongAnswers.length > 0) {
-    const wrongQuestionsText = wrongAnswers
-      .map(
-        (q) =>
-          `Question: "${q.question}"\nCorrect Answer: "${q.answer}"\nUser Answer: "${q.userAnswer}"`
-      )
-      .join("\n\n");
-
-    const improvementPrompt = `
-      The user got the following ${user.industry} technical interview questions wrong:
-
-      ${wrongQuestionsText}
-
-      Based on these mistakes, provide a concise, specific improvement tip.
-      Focus on the knowledge gaps revealed by these wrong answers.
-      Keep the response under 2 sentences and make it encouraging.
-      Don't explicitly mention the mistakes, instead focus on what to learn/practice.
-    `;
-
-    try {
-      const tipResult = await model.generateContent(improvementPrompt);
-
-      improvementTip = tipResult.response.text().trim();
-      console.log(improvementTip);
-    } catch (error) {
-      console.error("Error generating improvement tip:", error);
-      // Continue without improvement tip if generation fails
-    }
-  }
+export async function savingQuizResult(data) {
   try {
+    // Auth check
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authorized");
+    }
+
+    // User lookup
+    const user = await db.user.findUnique({
+      where: {
+        clerkUserId: userId,
+      },
+      select: {
+        id: true,
+        industry: true,
+        skills: true,
+      },
+    });
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const { questions, answer, score } = data;
+
+    // Input validation
+    if (!questions || !Array.isArray(questions)) {
+      throw new Error("Invalid questions format");
+    }
+
+    // Ensure answer is an array
+    const userAnswers = Array.isArray(answer) ? answer : [...answer];
+
+    // Process question results
+    const questionResults = questions.map((q, index) => ({
+      question: q.question,
+      answer: q.correctAnswer,
+      userAnswer: userAnswers[index] ,
+      isCorrect: q.correctAnswer === (userAnswers[index]),
+      explanation: q.explanation,
+    }));
+
+    // Handle wrong answers and improvement tips
+    const wrongAnswers = questionResults.filter((q) => !q.isCorrect);
+    let improvementTip = null;
+
+    if (wrongAnswers.length > 0) {
+      const wrongQuestionsText = wrongAnswers
+        .map(
+          (q) =>
+            `Question: "${q.question}"\nCorrect Answer: "${q.answer}"\nUser Answer: "${q.userAnswer}"`
+        )
+        .join("\n\n");
+
+      const improvementPrompt = `
+        The user got the following ${user.industry} technical interview questions wrong:
+
+        ${wrongQuestionsText}
+
+        Based on these mistakes, provide a concise, specific improvement tip.
+        Focus on the knowledge gaps revealed by these wrong answers.
+        Keep the response under 2 sentences and make it encouraging.
+        Don't explicitly mention the mistakes, instead focus on what to learn/practice.
+      `;
+
+      try {
+        const tipResult = await model.generateContent(improvementPrompt);
+        improvementTip = tipResult.response.text().trim();
+      } catch (error) {
+        console.error("Error generating improvement tip:", error);
+        // Continue without improvement tip
+      }
+    }
+
+    // Save to database
     const assessment = await db.assessment.create({
       data: {
         userId: user.id,
-        quizScore: score,
+        quizScore: score || 0, // Ensure score is never null
         questions: questionResults,
         category: "Technical",
         improvementTip,
       },
     });
 
-    return assessment;
+    return  assessment;
+
   } catch (error) {
-    console.error("Error saving quiz result:", error);
-    throw new Error("Failed to save quiz result");
+    console.error("Error in savingQuizResult:", error);
+    throw new Error(`Failed to save quiz result: ${error.message}`);
   }
 }
 
@@ -189,7 +205,7 @@ export async function getAssessment() {
       where: {
         userId: user.id,
       },
-      order: {
+      orderBy: {
         createdAt: "asc",
       },
     });
